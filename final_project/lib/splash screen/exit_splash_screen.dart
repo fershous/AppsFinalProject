@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:final_project/pages/home.dart';
 
+import '../pages/home.dart';
+
 class ExitSplashScreen extends StatelessWidget {
 
   @override
@@ -20,12 +22,9 @@ class ExitSplashScreen extends StatelessWidget {
     return Material(
       child: Stack(
         children: <Widget>[
-          Hero(
-            tag: "nav",
-            child: Container(
-              color: Colors.black,
-              height: size.height
-            ),
+          Container(
+            color: Colors.black,
+            height: size.height
           ),
           Center(
             child: Column(
