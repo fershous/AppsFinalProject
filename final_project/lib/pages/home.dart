@@ -1,14 +1,27 @@
 
-import 'package:final_project/dialogs/task_dialog.dart';
+import 'package:final_project/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'dart:async';
 
 import 'package:get/get.dart';
-import 'package:flutter_snake_navigationbar/flutter_snake_navigationbar.dart';
+import 'package:intl/intl.dart';
+import 'package:delayed_display/delayed_display.dart';
 
+import 'package:final_project/controllers/auth_controller.dart';
+import 'package:final_project/controllers/database_controller.dart';
 import 'package:final_project/controllers/unsplash_controller.dart';
 
+import 'package:final_project/dialogs/task_dialog.dart';
+import 'package:unsplash_client/unsplash_client.dart';
 
 final unsplashController = Get.find<UnsplashController>();
+final dataBaseController = Get.find<DatabaseController>();
+final authController     = Get.find<AuthController>();
+
+final DateFormat _dateFormatter = DateFormat('EEE, dd-MM'); 
+final DateFormat _timeFormatter = DateFormat('Hm'); 
 
 class HomePage extends StatefulWidget {
 
@@ -17,15 +30,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
-  ShapeBorder? bottomBarShape = const RoundedRectangleBorder(
-    borderRadius: BorderRadius.all(Radius.circular(25)),
-  );
-  SnakeBarBehaviour snakeBarStyle = SnakeBarBehaviour.floating;
-  EdgeInsets padding = const EdgeInsets.all(12);
-  int _selectedItemPosition = 2;
-  SnakeShape snakeShape = SnakeShape.circle;
-  Color selectedColor = Colors.white;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +43,11 @@ class _HomePageState extends State<HomePage> {
             child: HeaderWidget()
           ),
           actions: <Widget>[
-            Icon(Icons.notifications_none, color: Colors.black,)
+            IconButton(
+              onPressed: () => _showNotification(),
+              icon: Icon(Icons.notifications_none, color: Colors.black),
+            ),
+            SizedBox(width:15)
           ],
           bottom: TabBar(
             labelColor: Colors.black,
@@ -82,30 +90,6 @@ class _HomePageState extends State<HomePage> {
               )
             ),
           ],
-        ),       
-        bottomNavigationBar: SnakeNavigationBar.color(
-          behaviour: SnakeBarBehaviour.floating,
-          snakeShape: SnakeShape.circle,
-          shape: bottomBarShape,
-          padding: EdgeInsets.all(12),
-          backgroundColor: Colors.black,
-
-          snakeViewColor: selectedColor,
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.grey,
-
-          showUnselectedLabels: false,
-          showSelectedLabels: false,
-
-          currentIndex: _selectedItemPosition,
-          onTap: (index) => setState(() => _selectedItemPosition = index),
-          items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'tickets'),
-            const BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'calendar'),
-            const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'home'),
-            const BottomNavigationBarItem(icon: Icon(Icons.unsubscribe_rounded), label: 'email'),
-            const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'search'),
-          ],
         ),
       ),
     );
@@ -123,6 +107,12 @@ class BodyWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
+    Timer(Duration(milliseconds: 250), () {
+      databaseController.getTasks(id);
+    });
+
+    _setImage();
+
     return SafeArea(
       child: Column(
         children: [
@@ -130,71 +120,132 @@ class BodyWidget extends StatelessWidget {
           ImageContainer(),
           SizedBox(height: 20,),
           Expanded(
-            child: ListView.builder(
-              itemCount: 10,
-              itemBuilder: (BuildContext context, int index) {
-                return TaskWidget();
-              }
+            child: DelayedDisplay(
+              delay: Duration(milliseconds: 250),
+              child: GetX<DatabaseController>(
+                init: DatabaseController(),
+                builder: (databaseController) {
+                  return FutureBuilder(
+                    future: databaseController.tasks.value,
+                    builder: (BuildContext context, AsyncSnapshot<List<Task>> snapshot) {
+                      if (snapshot.hasData) {
+                        return ListView.builder(
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return Slidable(
+                              actionPane: SlidableDrawerActionPane(),
+                              actionExtentRatio: 0.25,
+                              child: TaskWidget(snapshot: snapshot.data![index]),
+                              actions: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: IconSlideAction(
+                                    caption: 'Eliminar',
+                                    color: Colors.red,
+                                    icon: Icons.delete,
+                                    onTap: () => {
+                                      databaseController.deleteTask(snapshot.data![index].id!),
+                                      databaseController.getTasks(id),
+                                      databaseController.queryAll()
+                                    }
+                                  ),
+                                )
+                              ],
+                              secondaryActions: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: IconSlideAction(
+                                    caption: 'Completar',
+                                    color: Colors.blue,
+                                    icon: Icons.done,
+                                    onTap: () => {
+                                      databaseController.deleteTask(snapshot.data![index].id!),
+                                      databaseController.getTasks(id),
+                                      databaseController.queryAll()
+                                    }
+                                  ),
+                                )
+                              ],
+                            );
+                          }
+                        );
+                      }
+                      else return CircularProgressIndicator();
+                    },
+                  );
+                }
+              ),
             ),
           )
         ],
       ),
     );
   }
-  
-}
 
-class TaskWidget extends StatelessWidget {
-  const TaskWidget({
-    Key? key,
-  }) : super(key: key);
+  void _setImage() async {
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => {
-        showDialog(
-          context: context, 
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return TasksDialog();
-          }
+    late String collection;
+
+    final client = UnsplashClient(
+      settings: ClientSettings(
+        credentials: AppCredentials(
+          accessKey: 'sgREAtZ1Njqlw7w-9oQhK5NrMhBBJ1S84JzBe6dl8S0',
+          secretKey: 'Nu9aqUEnDWY43Th51-VaPLVg42ul_4sJZk0xUG28tfs'
         )
-      },
-      child: TaskContent(),
+      )
     );
+
+    switch (id) {
+      case 1: collection = '34294057'; break;
+      case 2: collection = '472933'; break;
+      case 3: collection = '416011'; break;
+      case 4: collection = '1097194'; break;
+    }
+
+    print(collection);
+
+    final photo = await client.photos.random(
+      collections: ['$collection'],
+      count: 1,
+    ).goAndGet();
+
+    unsplashController.saveUrl(photo[0].urls.small.toString());
+
+    client.close();
   }
 }
 
-class TaskContent extends StatelessWidget {
-  const TaskContent({
-    Key? key,
+class TaskWidget extends StatelessWidget {
+
+  final Task snapshot;
+
+  const TaskWidget({
+    Key? key, required this.snapshot
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.all(20),
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.blueGrey[50],
-        borderRadius: BorderRadius.circular(10)
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Exámen de redes', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24)),
-          SizedBox(height: 5),
-          Row(
-            children: <Widget>[
-              Text('Hoy 13:00'),
-              Spacer(),
-              Text('Microsoft Teams', style: TextStyle(fontWeight: FontWeight.bold),)
-            ],
+
+    final day = _dateFormatter.format(DateTime.now());
+    final snap = _dateFormatter.format(DateTime.fromMillisecondsSinceEpoch(snapshot.date!));
+
+    if(day == snap) {
+
+      return GestureDetector(
+        onTap: () => {
+          showDialog(
+            context: context, 
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return TasksDialog();
+            }
           )
-        ]
-      )
-    );
+        },
+        child: TaskContent(snapshot: snapshot),
+      );
+    }
+    else return Container();
+
   }
 }
 
@@ -213,7 +264,7 @@ class HeaderWidget extends StatelessWidget {
           fontWeight: FontWeight.bold,
           fontSize: 24.0
         ),),
-        Text('HDTPM', style: TextStyle(
+        Text(authController.getUser.displayName!, style: TextStyle(
           color: Colors.black,
           fontWeight: FontWeight.bold,
           fontSize: 30.0
@@ -223,10 +274,53 @@ class HeaderWidget extends StatelessWidget {
   }
 }
 
+class TaskContent extends StatelessWidget {
+
+  final Task snapshot;
+
+  const TaskContent({
+    Key? key, required this.snapshot
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+
+    String _date = _dateFormatter.format(DateTime.fromMillisecondsSinceEpoch(snapshot.date!));
+    String _time = _timeFormatter.format(DateTime.fromMillisecondsSinceEpoch(snapshot.date!));
+
+    return Container(
+      margin: EdgeInsets.all(20),
+      padding: EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey[50],
+        borderRadius: BorderRadius.circular(10)
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            snapshot.title!, 
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24)),
+          SizedBox(height: 5),
+          Row(
+            children: <Widget>[
+              Text(_date + ' ' + _time),
+              Spacer(),
+              Text(snapshot.place!, style: TextStyle(fontWeight: FontWeight.bold),)
+            ],
+          )
+        ]
+      )
+    );
+  }
+}
+
 class ImageContainer extends StatelessWidget {
+
   ImageContainer({
     Key? key,
   }) : super(key: key);
+
 
   @override
   Widget build(BuildContext context) {
@@ -250,3 +344,20 @@ class ImageContainer extends StatelessWidget {
     );
   }
 }
+
+Future<void> _showNotification() async {
+
+  const AndroidNotificationDetails androidPlatformChannelSpecifics = 
+    AndroidNotificationDetails(
+      'channelId', 'channelName', 'channelDescription',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker'
+    );
+  const NotificationDetails platformChannelSpecifics = 
+    NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+      0, 'IPHY', 'Tienes: ${databaseController.count} pendientes', platformChannelSpecifics, payload: 'item'
+    );
+}
+

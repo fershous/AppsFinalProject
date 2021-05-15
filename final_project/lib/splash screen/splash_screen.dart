@@ -9,30 +9,31 @@ class SplashScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     return Material(
-      child: Stack(
+      color: Colors.black,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          Container(
-            color: Colors.black,
-            height: size.height
+          SizedBox(
+            height: size.height * 0.25,
           ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  "Initialization",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white
-                  ),
-                ),
-                SizedBox(height: 20),
-                CircularProgressIndicator()
-              ],
-            ),
+          Image.asset(
+            'assets/Logo IPHY White.png',
+            height: size.height * 0.30,
           ),
-        ]
+          SizedBox(height: 120),
+          Text('IPHY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 64),),
+          RichText(
+            text: TextSpan(
+              text: 'by ', style: TextStyle(color: Colors.white),
+              children: [
+                TextSpan(text: 'Fer, Elias, Francisco', style: TextStyle(fontWeight: FontWeight.bold))
+              ]
+            )
+          ),
+          Spacer(),
+          Text('ver 1.0', style: TextStyle(color: Colors.grey[350]),)
+        ],
       ),
     );
   }

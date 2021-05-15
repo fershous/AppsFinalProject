@@ -1,8 +1,10 @@
 
+import 'package:final_project/dialogs/task_dialog.dart';
 import 'package:get/get.dart';
-
-import 'package:final_project/controllers/unsplash_controller.dart';
 import 'package:unsplash_client/unsplash_client.dart';
+
+import 'package:final_project/controllers/database_controller.dart';
+import 'package:final_project/controllers/unsplash_controller.dart';
 
 class Init {
 
@@ -36,9 +38,13 @@ class Init {
   }
 
   static _loadSettings() async {
+    await Future.delayed(Duration(seconds: 5));
+    final dataBaseController = Get.find<DatabaseController>();
     print("Starting loading services");
-    await Future.delayed(Duration(seconds: 2));
+    await dataBaseController.database;
+    databaseController.queryAll();
     print("Finished loading services");
+
   }
 
 }

@@ -1,12 +1,10 @@
 
+import 'package:final_project/auth/login_page.dart';
 import 'package:flutter/material.dart';
 
 import 'dart:async';
 
 import 'package:get/get.dart';
-import 'package:final_project/pages/home.dart';
-
-import '../pages/home.dart';
 
 class ExitSplashScreen extends StatelessWidget {
 
@@ -16,34 +14,35 @@ class ExitSplashScreen extends StatelessWidget {
     final size = MediaQuery.of(context).size;
 
     Timer(Duration(seconds: 1), () {
-      Get.off(() => HomePage(), duration: Duration(milliseconds: 1500));
+      Get.off(() => LoginPage(), duration: Duration(milliseconds: 500));
     });
 
     return Material(
-      child: Stack(
+      color: Colors.black,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          Container(
-            color: Colors.black,
-            height: size.height
+          SizedBox(
+            height: size.height * 0.25,
           ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  "Initialization",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white
-                  ),
-                ),
-                SizedBox(height: 20),
-                CircularProgressIndicator()
-              ],
-            ),
+          Image.asset(
+            'assets/Logo IPHY White.png',
+            height: size.height * 0.30,
           ),
-        ]
+          SizedBox(height: 120),
+          Text('IPHY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 64),),
+          RichText(
+            text: TextSpan(
+              text: 'by ', style: TextStyle(color: Colors.white),
+              children: [
+                TextSpan(text: 'Fer, Elias, Francisco', style: TextStyle(fontWeight: FontWeight.bold))
+              ]
+            )
+          ),
+          Spacer(),
+          Text('ver 1.0', style: TextStyle(color: Colors.grey[350]),)
+        ],
       ),
     );
   }
